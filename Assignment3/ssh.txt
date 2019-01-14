@@ -1,0 +1,1 @@
+If you just want the content as string, then the simple solution is to use the ReadFile function from the io/ioutil package. This function returns a slice of bytes which you can easily convert to a string, man

@@ -20,22 +20,27 @@ const (
 	ConnType = "tcp"
 )
 const maxUploadSize = 300 * 1024 * 1024 // 40 mb
-const uploadPath = "D:\\tmp\\"
+var UploadPath = "C:\\tmp\\"
+
+const tmp = "\\tmp\\"
 
 func main() {
-	http.HandleFunc("/upload", uploadFileHandler())
-	if _, err := os.Stat(uploadPath); os.IsNotExist(err) {
-		os.Mkdir(uploadPath, 0777)
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
 	}
-	copy("D:\\Type1\\App_E_Dog.exe", uploadPath+"App_E_Dog.exe")
-	fmt.Println("filepath: " + uploadPath + "App_E_Dog.exe")
-	copy("D:\\Type1\\cygwin1.dll", uploadPath+"cygwin1.dll")
+	fmt.Println(dir)
+	UploadPath = dir
 
-	fs := http.FileServer(http.Dir(uploadPath))
+	http.HandleFunc("/upload", uploadFileHandler())
+	if _, err := os.Stat(UploadPath + tmp); os.IsNotExist(err) {
+		os.Mkdir(UploadPath+tmp, 0777)
+	}
+	copy(UploadPath+"\\Type1\\App_E_Dog.exe", UploadPath+tmp+"App_E_Dog.exe")
+	copy(UploadPath+"\\Type1\\cygwin1.dll", UploadPath+tmp+"cygwin1.dll")
+
+	fs := http.FileServer(http.Dir(UploadPath + tmp))
 	fmt.Println(fs)
-	http.Handle("/files/", http.StripPrefix("/files", fs))
-
-	log.Print("Server started on localhost:3333, use /upload for uploading files and /files/{fileName} for downloading")
 	log.Fatal(http.ListenAndServe(":3333", nil))
 }
 
@@ -94,7 +99,7 @@ func uploadFileHandler() http.HandlerFunc {
 				}
 				// open destination
 				var outfile *os.File
-				if outfile, err = os.Create(uploadPath + hdr.Filename); nil != err {
+				if outfile, err = os.Create(UploadPath + tmp + hdr.Filename); nil != err {
 					status = http.StatusInternalServerError
 					return
 				}
@@ -105,11 +110,10 @@ func uploadFileHandler() http.HandlerFunc {
 					return
 				}
 
-				// w.Write([]byte("uploaded file:" + hdr.Filename + ";length:" + strconv.Itoa(int(written))))
 				fmt.Println([]byte("uploaded file:" + hdr.Filename + ";length:" + strconv.Itoa(int(written))))
-				convertFile(uploadPath)
+				convertFile(UploadPath + tmp)
 
-				Filename := uploadPath + "e_dog_data.txt"
+				Filename := UploadPath + tmp + "e_dog_data.txt"
 				Openfile, err := os.Open(Filename)
 				if err != nil {
 					//File not found, send 404
@@ -125,17 +129,7 @@ func uploadFileHandler() http.HandlerFunc {
 				}
 
 				fmt.Println("Content Type: " + contentType)
-
 				//File is found, create and send the correct headers
-
-				//Get the Content-Type of the file
-				//Create a buffer to store the header of the file in
-				// FileHeader := make([]byte, 512)
-				// //Copy the headers into the FileHeader buffer
-				// Openfile.Read(FileHeader)
-				// //Get content type of file
-				// FileContentType := http.DetectContentType(FileHeader)
-
 				//Get the file size
 				FileStat, _ := Openfile.Stat()                     //Get info from file
 				FileSize := strconv.FormatInt(FileStat.Size(), 10) //Get file size as a string
@@ -151,7 +145,6 @@ func uploadFileHandler() http.HandlerFunc {
 				//We read 512 bytes from the file already, so we reset the offset back to 0
 				Openfile.Seek(0, 0)
 				io.Copy(w, Openfile) //'Copy' the file to the client
-				// http.ServeContent(w, req, Openfile.Name(), FileStat.ModTime(), Openfile)
 			}
 		}
 	})
@@ -174,51 +167,6 @@ func getFileContentType(out *os.File) (string, error) {
 
 	return contentType, nil
 }
-
-// func uploadFileHandler() http.HandlerFunc {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-// 		fmt.Println(filepath.Join(uploadPath + "Advocam_speedcam_V1.txt"))
-
-// 		in, _, err := req.FormFile("uploadfile")
-// 		if err != nil {
-// 			fmt.Println(err)
-// 		}
-// 		defer in.Close()
-// 		convertFile(uploadPath)
-// 		Filename := uploadPath + "e_dog_data.txt"
-// 		Openfile, err := os.Open(Filename)
-// 		defer Openfile.Close() //Close after function return
-// 		if err != nil {
-// 			//File not found, send 404
-// 			http.Error(w, "File not found.", 404)
-// 			return
-// 		}
-
-// 		//File is found, create and send the correct headers
-
-// 		//Get the Content-Type of the file
-// 		//Create a buffer to store the header of the file in
-// 		FileHeader := make([]byte, 512)
-// 		//Copy the headers into the FileHeader buffer
-// 		Openfile.Read(FileHeader)
-// 		//Get content type of file
-// 		FileContentType := http.DetectContentType(FileHeader)
-
-// 		//Get the file size
-// 		FileStat, _ := Openfile.Stat()                     //Get info from file
-// 		FileSize := strconv.FormatInt(FileStat.Size(), 10) //Get file size as a string
-
-// 		//Send the headers
-// 		w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(Filename))
-// 		w.Header().Set("Content-Type", FileContentType)
-// 		w.Header().Set("Content-Length", FileSize)
-
-// 		//Send the file
-// 		//We read 512 bytes from the file already, so we reset the offset back to 0
-// 		Openfile.Seek(0, 0)
-// 		io.Copy(w, Openfile) //'Copy' the file to the client
-// 	})
-// }
 
 func renderError(w http.ResponseWriter, message string, statusCode int) {
 	w.WriteHeader(http.StatusBadRequest)

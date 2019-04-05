@@ -89,6 +89,10 @@ func uploadFileHandler() http.HandlerFunc {
 			return
 		}
 		fmt.Println("No memory problem")
+		// req.ParseForm()                     // Parses the request body
+		model_type := req.Form.Get("model_type") // x will be "" if parameter is not set
+		fmt.Println("Model type: " + model_type)
+
 		for _, fheaders := range req.MultipartForm.File {
 			for _, hdr := range fheaders {
 				// open uploaded

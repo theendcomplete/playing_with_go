@@ -22,19 +22,26 @@
     <body>
         <form enctype="multipart/form-data"
             action="http://127.0.0.1:3333/upload" method="post">
-            <input type="file" name="uploadfile" id="uploadfile"
-                accept=".txt" pattern="^Advocam_speedcam_V1.txt|^speedcam22.txt"
-                ,onchange="AlertFilesize();">
-            <select name="model_type">
-                <option value="Type1" selected>AdvoCam-FD8 Gold-II (GPS+ГЛОНАСС)</option>
-                <option value="Type1">AdvoCam-FD8 Red-II (GPS+ГЛОНАСС)</option>
-                <option value="Type1">AdvoCam-FD8 Gold GPS</option>
-                <option value="Type1">AdvoCam-FD8 Profi-GPS RED</option>
-                <option value="Type1">AdvoCam-FD8 SE</option>
-                <option value="Type1">AdvoCam-FD8 Profi-GPS RED</option>
-                <option value="Type1">AdvoCam-FD7 Profi-GPS</option>
-                <option value="Type2">AdvoCam-FD Black-II (GPS+ГЛОНАСС)</option>
-            </select>
+            <p>Ваш email:<Br>
+                <input type="email" name="emailaddress" required></p>
+            <p><input type="file" name="uploadfile" id="uploadfile"
+                    accept=".txt"
+                    pattern="^Advocam_speedcam_V1.txt|^speedcam22.txt"
+                    ,onchange="AlertFilesize();" required></p>
+            <p><select name="model_type" required>
+                    <option value="Type1" selected>AdvoCam-FD8 Gold-II
+                        (GPS+ГЛОНАСС)</option>
+                    <option value="Type1">AdvoCam-FD8 Red-II (GPS+ГЛОНАСС)</option>
+                    <option value="Type1">AdvoCam-FD8 Gold GPS</option>
+                    <option value="Type1">AdvoCam-FD8 Profi-GPS RED</option>
+                    <option value="Type1">AdvoCam-FD8 SE</option>
+                    <option value="Type1">AdvoCam-FD8 Profi-GPS RED</option>
+                    <option value="Type1">AdvoCam-FD7 Profi-GPS</option>
+                    <option value="Type2">AdvoCam-FD Black-II (GPS+ГЛОНАСС)</option>
+                </select>
+            </p>
+            <p>Комментарий<Br>
+                <textarea name="comment" cols="40" rows="3"></textarea></p>
             <input type="hidden" name="token" value="{{.}}" />
             <input type="submit" value="upload" />
         </form>

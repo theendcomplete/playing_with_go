@@ -8,9 +8,9 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 //Параметры соединения
@@ -20,7 +20,7 @@ const (
 	ConnType = "tcp"
 )
 const maxUploadSize = 300 * 1024 * 1024 // 40 mb
-var UploadPath = "C:\\tmp\\"
+var uploadPath = "C:\\tmp\\"
 
 const tmp = "\\tmp\\"
 
@@ -30,16 +30,16 @@ func main() {
 		log.Fatal(err)
 	}
 	fmt.Println(dir)
-	UploadPath = dir
+	uploadPath = dir
 
 	http.HandleFunc("/upload", uploadFileHandler())
-	if _, err := os.Stat(UploadPath + tmp); os.IsNotExist(err) {
-		os.Mkdir(UploadPath+tmp, 0777)
+	if _, err := os.Stat(uploadPath + tmp); os.IsNotExist(err) {
+		os.Mkdir(uploadPath+tmp, 0777)
 	}
-	copy(UploadPath+"\\Type1\\App_E_Dog.exe", UploadPath+tmp+"App_E_Dog.exe")
-	copy(UploadPath+"\\Type1\\cygwin1.dll", UploadPath+tmp+"cygwin1.dll")
+	// copy(uploadPath+"\\Type1\\App_E_Dog.exe", uploadPath+tmp+"App_E_Dog.exe")
+	// copy(uploadPath+"\\Type1\\cygwin1.dll", uploadPath+tmp+"cygwin1.dll")
 
-	fs := http.FileServer(http.Dir(UploadPath + tmp))
+	fs := http.FileServer(http.Dir(uploadPath + tmp))
 	fmt.Println(fs)
 	log.Fatal(http.ListenAndServe(":3333", nil))
 }
@@ -90,8 +90,29 @@ func uploadFileHandler() http.HandlerFunc {
 		}
 		fmt.Println("No memory problem")
 		// req.ParseForm()                     // Parses the request body
-		model_type := req.Form.Get("model_type") // x will be "" if parameter is not set
-		fmt.Println("Model type: " + model_type)
+		modelType := req.Form.Get("model_type") // x will be "" if parameter is not set
+		fmt.Println("Model type: " + modelType)
+		workDir := uploadPath + tmp + fmt.Sprintf("%v", makeTimestamp()) + "\\"
+		fmt.Println("Workdir" + workDir)
+		if _, err := os.Stat(workDir); os.IsNotExist(err) {
+			os.Mkdir(workDir, 0777)
+		}
+
+		sendEmail(req.Form.Get("emailaddress"), req.Form.Get("comment"))
+		uploadFileName := ""
+		responseFileName := ""
+		if modelType == "Type1" {
+			copy(uploadPath+"\\Type1\\App_E_Dog.exe", workDir+"App_E_Dog.exe")
+			copy(uploadPath+"\\Type1\\cygwin1.dll", workDir+"cygwin1.dll")
+			uploadFileName = "Advocam_speedcam_V1.txt"
+			responseFileName = "e_dog_data.txt"
+		}
+		if modelType == "Type2" {
+			copy(uploadPath+"\\Type2\\App_E_Dog.exe", workDir+"App_E_Dog.exe")
+			copy(uploadPath+"\\Type2\\cygwin1.dll", workDir+"cygwin1.dll")
+			uploadFileName = "speedcam22.txt"
+			responseFileName = "DATA_T.BIN"
+		}
 
 		for _, fheaders := range req.MultipartForm.File {
 			for _, hdr := range fheaders {
@@ -103,7 +124,8 @@ func uploadFileHandler() http.HandlerFunc {
 				}
 				// open destination
 				var outfile *os.File
-				if outfile, err = os.Create(UploadPath + tmp + hdr.Filename); nil != err {
+				// if outfile, err = os.Create(workDir + hdr.Filename); nil != err {
+				if outfile, err = os.Create(workDir + uploadFileName); nil != err {
 					status = http.StatusInternalServerError
 					return
 				}
@@ -115,16 +137,17 @@ func uploadFileHandler() http.HandlerFunc {
 				}
 
 				fmt.Println([]byte("uploaded file:" + hdr.Filename + ";length:" + strconv.Itoa(int(written))))
-				convertFile(UploadPath + tmp)
+				convertFile(workDir)
 
-				Filename := UploadPath + tmp + "e_dog_data.txt"
+				Filename := workDir + responseFileName
 				Openfile, err := os.Open(Filename)
 				if err != nil {
 					//File not found, send 404
 					http.Error(w, "File not found.", 404)
 					return
 				}
-				defer Openfile.Close() //Close after function return
+				defer Openfile.Close()        //Close after function return
+				defer removeContents(workDir) //Clean folder after return
 
 				// Get the content
 				contentType, err := getFileContentType(Openfile)
@@ -168,7 +191,6 @@ func getFileContentType(out *os.File) (string, error) {
 	// Use the net/http package's handy DectectContentType function. Always returns a valid
 	// content-type by returning "application/octet-stream" if no others seemed to match.
 	contentType := http.DetectContentType(buffer)
-
 	return contentType, nil
 }
 
@@ -183,16 +205,25 @@ func randToken(len int) string {
 	return fmt.Sprintf("%x", b)
 }
 
-// Конвертирует файл с использованием проприетарного по
-func convertFile(dirname string) {
-
-	fmt.Println(dirname + "App_E_Dog.exe")
-	cmd := exec.Command("powershell", dirname+"App_E_Dog.exe")
-	cmd.Dir = dirname
-	log.Printf("Running command and waiting for it to finish...")
-	error := cmd.Run()
-	if error != nil {
-		fmt.Println("Error launching:", error.Error())
-		log.Printf("Command finished with error: %v", error)
+func makeTimestamp() int64 {
+	return time.Now().UnixNano() / int64(time.Millisecond)
+}
+func removeContents(dir string) error {
+	fmt.Println("Cleaning " + dir + " dir")
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
 	}
+	defer d.Close()
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+	for _, name := range names {
+		err = os.RemoveAll(filepath.Join(dir, name))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
